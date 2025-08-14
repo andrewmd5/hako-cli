@@ -669,6 +669,193 @@ static uint32_t hako_clearTimeout_callback(wasm_exec_env_t exec_env,
   return 0;
 }
 
+static uint32_t hako_read_callback(wasm_exec_env_t exec_env, uint32_t ctx,
+                                   uint32_t this_ptr, int argc, uint32_t *argv,
+                                   int32_t func_id) {
+  HakoRuntime *runtime = g_runtime;
+  if (!runtime) {
+    return 0;
+  }
+
+  size_t capacity = 4096;
+  size_t size = 0;
+  char *buffer = malloc(capacity);
+  if (!buffer) {
+
+    if (runtime->funcs.get_undefined) {
+      uint32_t undef_argv[1];
+      if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.get_undefined,
+                                        0, undef_argv))) {
+        return undef_argv[0];
+      }
+    }
+    return 0;
+  }
+
+  size_t bytes_read;
+  while ((bytes_read = fread(buffer + size, 1, capacity - size - 1, stdin)) >
+         0) {
+    size += bytes_read;
+
+    if (size >= capacity - 1) {
+      capacity *= 2;
+      char *new_buffer = realloc(buffer, capacity);
+      if (!new_buffer) {
+        free(buffer);
+
+        if (runtime->funcs.get_undefined) {
+          uint32_t undef_argv[1];
+          if (LIKELY(wasm_runtime_call_wasm(
+                  exec_env, runtime->funcs.get_undefined, 0, undef_argv))) {
+            return undef_argv[0];
+          }
+        }
+        return 0;
+      }
+      buffer = new_buffer;
+    }
+  }
+
+  buffer[size] = '\0';
+
+  if (runtime->funcs.new_string) {
+    uint32_t str_ptr = hako_allocate_string(runtime, buffer);
+    free(buffer);
+
+    if (!str_ptr) {
+
+      if (runtime->funcs.get_undefined) {
+        uint32_t undef_argv[1];
+        if (LIKELY(wasm_runtime_call_wasm(
+                exec_env, runtime->funcs.get_undefined, 0, undef_argv))) {
+          return undef_argv[0];
+        }
+      }
+      return 0;
+    }
+
+    uint32_t str_argv[2] = {ctx, str_ptr};
+    if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.new_string, 2,
+                                      str_argv))) {
+      hako_free_in_wasm(runtime, str_ptr);
+      return str_argv[0];
+    }
+
+    hako_free_in_wasm(runtime, str_ptr);
+  }
+
+  free(buffer);
+
+  if (runtime->funcs.get_undefined) {
+    uint32_t undef_argv[1];
+    if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.get_undefined, 0,
+                                      undef_argv))) {
+      return undef_argv[0];
+    }
+  }
+
+  return 0;
+}
+
+static uint32_t hako_readline_callback(wasm_exec_env_t exec_env, uint32_t ctx,
+                                       uint32_t this_ptr, int argc,
+                                       uint32_t *argv, int32_t func_id) {
+  HakoRuntime *runtime = g_runtime;
+  if (!runtime) {
+    return 0;
+  }
+
+  size_t capacity = 256;
+  size_t size = 0;
+  char *buffer = malloc(capacity);
+  if (!buffer) {
+
+    if (runtime->funcs.get_undefined) {
+      uint32_t undef_argv[1];
+      if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.get_undefined,
+                                        0, undef_argv))) {
+        return undef_argv[0];
+      }
+    }
+    return 0;
+  }
+
+  int c;
+  while ((c = fgetc(stdin)) != EOF && c != '\n') {
+    buffer[size++] = c;
+
+    if (size >= capacity - 1) {
+      capacity *= 2;
+      char *new_buffer = realloc(buffer, capacity);
+      if (!new_buffer) {
+        free(buffer);
+
+        if (runtime->funcs.get_undefined) {
+          uint32_t undef_argv[1];
+          if (LIKELY(wasm_runtime_call_wasm(
+                  exec_env, runtime->funcs.get_undefined, 0, undef_argv))) {
+            return undef_argv[0];
+          }
+        }
+        return 0;
+      }
+      buffer = new_buffer;
+    }
+  }
+
+  if (c == EOF && size == 0) {
+    free(buffer);
+    if (runtime->funcs.get_null) {
+      uint32_t null_argv[1];
+      if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.get_null, 0,
+                                        null_argv))) {
+        return null_argv[0];
+      }
+    }
+    return 0;
+  }
+
+  buffer[size] = '\0';
+
+  if (runtime->funcs.new_string) {
+    uint32_t str_ptr = hako_allocate_string(runtime, buffer);
+    free(buffer);
+
+    if (!str_ptr) {
+
+      if (runtime->funcs.get_undefined) {
+        uint32_t undef_argv[1];
+        if (LIKELY(wasm_runtime_call_wasm(
+                exec_env, runtime->funcs.get_undefined, 0, undef_argv))) {
+          return undef_argv[0];
+        }
+      }
+      return 0;
+    }
+
+    uint32_t str_argv[2] = {ctx, str_ptr};
+    if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.new_string, 2,
+                                      str_argv))) {
+      hako_free_in_wasm(runtime, str_ptr);
+      return str_argv[0];
+    }
+
+    hako_free_in_wasm(runtime, str_ptr);
+  }
+
+  free(buffer);
+
+  if (runtime->funcs.get_undefined) {
+    uint32_t undef_argv[1];
+    if (LIKELY(wasm_runtime_call_wasm(exec_env, runtime->funcs.get_undefined, 0,
+                                      undef_argv))) {
+      return undef_argv[0];
+    }
+  }
+
+  return 0;
+}
+
 static void hako_process_timers(HakoRuntime *runtime) {
   uint64_t current_time = hako_get_current_time_ms();
 
@@ -1949,6 +2136,154 @@ static bool hako_setup_timers(HakoRuntime *runtime) {
   return true;
 }
 
+static bool hako_setup_io(HakoRuntime *runtime) {
+  if (!runtime->funcs.get_global_object || !runtime->funcs.new_function ||
+      !runtime->funcs.new_string || !runtime->funcs.set_prop ||
+      !runtime->funcs.free_value_pointer) {
+    if (runtime->debug_mode) {
+      fprintf(runtime->error_stream ?: stderr,
+              "[ERROR] Required functions for I/O setup not found\n");
+    }
+    return false;
+  }
+
+  int32_t read_id = hako_host_registry_add(&runtime->host_functions, "read",
+                                           hako_read_callback, NULL);
+  int32_t readline_id = hako_host_registry_add(
+      &runtime->host_functions, "readline", hako_readline_callback, NULL);
+
+  if (!read_id || !readline_id) {
+    return false;
+  }
+
+  uint32_t argv[5];
+
+  argv[0] = runtime->js_context;
+  if (UNLIKELY(!wasm_runtime_call_wasm(
+          runtime->exec_env, runtime->funcs.get_global_object, 1, argv))) {
+    return false;
+  }
+  uint32_t global_obj = argv[0];
+
+  uint32_t read_name_ptr = hako_allocate_string(runtime, "read");
+  if (read_name_ptr) {
+    argv[0] = runtime->js_context;
+    argv[1] = (uint32_t)read_id;
+    argv[2] = read_name_ptr;
+
+    if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
+                                      runtime->funcs.new_function, 3, argv))) {
+      uint32_t read_func = argv[0];
+
+      argv[0] = runtime->js_context;
+      argv[1] = read_name_ptr;
+      if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
+                                        runtime->funcs.new_string, 2, argv))) {
+        uint32_t read_prop_name = argv[0];
+
+        argv[0] = runtime->js_context;
+        argv[1] = global_obj;
+        argv[2] = read_prop_name;
+        argv[3] = read_func;
+        if (UNLIKELY(!wasm_runtime_call_wasm(
+                runtime->exec_env, runtime->funcs.set_prop, 4, argv))) {
+          if (runtime->debug_mode) {
+            fprintf(runtime->error_stream ?: stderr,
+                    "[ERROR] Failed to set read property\n");
+          }
+        }
+
+        argv[0] = runtime->js_context;
+        argv[1] = read_prop_name;
+        if (UNLIKELY(!wasm_runtime_call_wasm(runtime->exec_env,
+                                             runtime->funcs.free_value_pointer,
+                                             2, argv))) {
+          if (runtime->debug_mode) {
+            fprintf(runtime->error_stream ?: stderr,
+                    "[ERROR] free_value_pointer failed\n");
+          }
+        }
+      }
+
+      argv[0] = runtime->js_context;
+      argv[1] = read_func;
+      if (UNLIKELY(!wasm_runtime_call_wasm(
+              runtime->exec_env, runtime->funcs.free_value_pointer, 2, argv))) {
+        if (runtime->debug_mode) {
+          fprintf(runtime->error_stream ?: stderr,
+                  "[ERROR] free_value_pointer failed\n");
+        }
+      }
+    }
+    hako_free_in_wasm(runtime, read_name_ptr);
+  }
+
+  uint32_t readline_name_ptr = hako_allocate_string(runtime, "readline");
+  if (readline_name_ptr) {
+    argv[0] = runtime->js_context;
+    argv[1] = (uint32_t)readline_id;
+    argv[2] = readline_name_ptr;
+
+    if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
+                                      runtime->funcs.new_function, 3, argv))) {
+      uint32_t readline_func = argv[0];
+
+      argv[0] = runtime->js_context;
+      argv[1] = readline_name_ptr;
+      if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
+                                        runtime->funcs.new_string, 2, argv))) {
+        uint32_t readline_prop_name = argv[0];
+
+        argv[0] = runtime->js_context;
+        argv[1] = global_obj;
+        argv[2] = readline_prop_name;
+        argv[3] = readline_func;
+        if (UNLIKELY(!wasm_runtime_call_wasm(
+                runtime->exec_env, runtime->funcs.set_prop, 4, argv))) {
+          if (runtime->debug_mode) {
+            fprintf(runtime->error_stream ?: stderr,
+                    "[ERROR] Failed to set readline property\n");
+          }
+        }
+
+        argv[0] = runtime->js_context;
+        argv[1] = readline_prop_name;
+        if (UNLIKELY(!wasm_runtime_call_wasm(runtime->exec_env,
+                                             runtime->funcs.free_value_pointer,
+                                             2, argv))) {
+          if (runtime->debug_mode) {
+            fprintf(runtime->error_stream ?: stderr,
+                    "[ERROR] free_value_pointer failed\n");
+          }
+        }
+      }
+
+      argv[0] = runtime->js_context;
+      argv[1] = readline_func;
+      if (UNLIKELY(!wasm_runtime_call_wasm(
+              runtime->exec_env, runtime->funcs.free_value_pointer, 2, argv))) {
+        if (runtime->debug_mode) {
+          fprintf(runtime->error_stream ?: stderr,
+                  "[ERROR] free_value_pointer failed\n");
+        }
+      }
+    }
+    hako_free_in_wasm(runtime, readline_name_ptr);
+  }
+
+  argv[0] = runtime->js_context;
+  argv[1] = global_obj;
+  if (UNLIKELY(!wasm_runtime_call_wasm(
+          runtime->exec_env, runtime->funcs.free_value_pointer, 2, argv))) {
+    if (runtime->debug_mode) {
+      fprintf(runtime->error_stream ?: stderr,
+              "[ERROR] free_value_pointer failed\n");
+    }
+  }
+
+  return true;
+}
+
 static HakoRuntime *hako_runtime_create(void) {
   HakoRuntime *runtime = calloc(1, sizeof(HakoRuntime));
   if (!runtime) {
@@ -2050,6 +2385,11 @@ static HakoRuntime *hako_runtime_create(void) {
     }
   }
 
+  if (!hako_setup_io(runtime)) {
+    if (runtime->debug_mode) {
+      fprintf(stderr, "[WARNING] Failed to setup I/O functions\n");
+    }
+  }
   runtime->repl_line_number = 1;
 
   return runtime;
@@ -2262,123 +2602,123 @@ static uint32_t hako_await(HakoRuntime *runtime, uint32_t promise_value) {
 }
 
 static bool hako_compile_to_bytecode(HakoRuntime *runtime, const char *code,
-                                    size_t code_len, const char *filename,
-                                    const char *output_file) {
- if (!runtime->funcs.compile_to_bytecode) {
-   fprintf(stderr, "Error: HAKO_CompileToByteCode not found\n");
-   return false;
- }
+                                     size_t code_len, const char *filename,
+                                     const char *output_file) {
+  if (!runtime->funcs.compile_to_bytecode) {
+    fprintf(stderr, "Error: HAKO_CompileToByteCode not found\n");
+    return false;
+  }
 
- uint32_t code_ptr = hako_allocate_string(runtime, code);
- uint32_t filename_ptr = hako_allocate_string(runtime, filename);
+  uint32_t code_ptr = hako_allocate_string(runtime, code);
+  uint32_t filename_ptr = hako_allocate_string(runtime, filename);
 
- if (!code_ptr || !filename_ptr) {
-   if (code_ptr) hako_free_in_wasm(runtime, code_ptr);
-   if (filename_ptr) hako_free_in_wasm(runtime, filename_ptr);
-   fprintf(stderr, "Error: Out of memory\n");
-   return false;
- }
+  if (!code_ptr || !filename_ptr) {
+    if (code_ptr)
+      hako_free_in_wasm(runtime, code_ptr);
+    if (filename_ptr)
+      hako_free_in_wasm(runtime, filename_ptr);
+    fprintf(stderr, "Error: Out of memory\n");
+    return false;
+  }
 
- // Allocate 4 bytes for uint32_t, not sizeof(size_t)
- uint32_t size_ptr = hako_allocate_in_wasm(runtime, 4);
- if (!size_ptr) {
-   hako_free_in_wasm(runtime, code_ptr);
-   hako_free_in_wasm(runtime, filename_ptr);
-   fprintf(stderr, "Error: Out of memory\n");
-   return false;
- }
+  uint32_t size_ptr = hako_allocate_in_wasm(runtime, 4);
+  if (!size_ptr) {
+    hako_free_in_wasm(runtime, code_ptr);
+    hako_free_in_wasm(runtime, filename_ptr);
+    fprintf(stderr, "Error: Out of memory\n");
+    return false;
+  }
 
- uint32_t argv[7] = {
-     runtime->js_context,
-     code_ptr,
-     (uint32_t)code_len,
-     filename_ptr,
-     1,
-     0,
-     size_ptr
- };
+  uint32_t argv[7] = {runtime->js_context,
+                      code_ptr,
+                      (uint32_t)code_len,
+                      filename_ptr,
+                      1,
+                      0,
+                      size_ptr};
 
- if (UNLIKELY(!wasm_runtime_call_wasm(runtime->exec_env,
-                             runtime->funcs.compile_to_bytecode, 7, argv))) {
-   const char *exception = wasm_runtime_get_exception(runtime->instance);
-   fprintf(stderr, "Compilation failed: %s\n", exception ?: "Unknown error");
-   hako_free_in_wasm(runtime, code_ptr);
-   hako_free_in_wasm(runtime, filename_ptr);
-   hako_free_in_wasm(runtime, size_ptr);
-   return false;
- }
+  if (UNLIKELY(!wasm_runtime_call_wasm(
+          runtime->exec_env, runtime->funcs.compile_to_bytecode, 7, argv))) {
+    const char *exception = wasm_runtime_get_exception(runtime->instance);
+    fprintf(stderr, "Compilation failed: %s\n", exception ?: "Unknown error");
+    hako_free_in_wasm(runtime, code_ptr);
+    hako_free_in_wasm(runtime, filename_ptr);
+    hako_free_in_wasm(runtime, size_ptr);
+    return false;
+  }
 
- uint32_t bytecode_ptr = argv[0];
+  uint32_t bytecode_ptr = argv[0];
 
- hako_free_in_wasm(runtime, code_ptr);
- hako_free_in_wasm(runtime, filename_ptr);
+  hako_free_in_wasm(runtime, code_ptr);
+  hako_free_in_wasm(runtime, filename_ptr);
 
- if (!bytecode_ptr) {
-   if (runtime->funcs.get_last_error) {
-     uint32_t error_argv[2] = {runtime->js_context, 0};
-     if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
-                                runtime->funcs.get_last_error, 2,
-                                error_argv)) &&
-         error_argv[0] != 0) {
-       char *error_str = hako_value_to_string(runtime, error_argv[0], 2);
-       fprintf(stderr, "Compilation error: %s\n", error_str);
-       free(error_str);
-       if (runtime->funcs.free_value_pointer) {
-         uint32_t free_argv[2] = {runtime->js_context, error_argv[0]};
-         if (UNLIKELY(!wasm_runtime_call_wasm(runtime->exec_env,
-                                    runtime->funcs.free_value_pointer, 2,
-                                    free_argv))) {
-           if (runtime->debug_mode) {
-             fprintf(runtime->error_stream ?: stderr,
-                     "[ERROR] free_value_pointer failed\n");
-           }
-         }
-       }
-     }
-   }
-   hako_free_in_wasm(runtime, size_ptr);
-   return false;
- }
+  if (!bytecode_ptr) {
+    if (runtime->funcs.get_last_error) {
+      uint32_t error_argv[2] = {runtime->js_context, 0};
+      if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env,
+                                        runtime->funcs.get_last_error, 2,
+                                        error_argv)) &&
+          error_argv[0] != 0) {
+        char *error_str = hako_value_to_string(runtime, error_argv[0], 2);
+        fprintf(stderr, "Compilation error: %s\n", error_str);
+        free(error_str);
+        if (runtime->funcs.free_value_pointer) {
+          uint32_t free_argv[2] = {runtime->js_context, error_argv[0]};
+          if (UNLIKELY(!wasm_runtime_call_wasm(
+                  runtime->exec_env, runtime->funcs.free_value_pointer, 2,
+                  free_argv))) {
+            if (runtime->debug_mode) {
+              fprintf(runtime->error_stream ?: stderr,
+                      "[ERROR] free_value_pointer failed\n");
+            }
+          }
+        }
+      }
+    }
+    hako_free_in_wasm(runtime, size_ptr);
+    return false;
+  }
 
- // Read as uint32_t
- uint32_t *size_addr = wasm_runtime_addr_app_to_native(runtime->instance, size_ptr);
- if (!size_addr) {
-   fprintf(stderr, "Error: Invalid size pointer\n");
-   hako_free_in_wasm(runtime, bytecode_ptr);
-   hako_free_in_wasm(runtime, size_ptr);
-   return false;
- }
- 
- size_t bytecode_size = (size_t)(*size_addr);
- hako_free_in_wasm(runtime, size_ptr);
+  uint32_t *size_addr =
+      wasm_runtime_addr_app_to_native(runtime->instance, size_ptr);
+  if (!size_addr) {
+    fprintf(stderr, "Error: Invalid size pointer\n");
+    hako_free_in_wasm(runtime, bytecode_ptr);
+    hako_free_in_wasm(runtime, size_ptr);
+    return false;
+  }
 
- uint8_t *bytecode = wasm_runtime_addr_app_to_native(runtime->instance, bytecode_ptr);
- if (!bytecode) {
-   fprintf(stderr, "Error: Invalid bytecode pointer\n");
-   hako_free_in_wasm(runtime, bytecode_ptr);
-   return false;
- }
+  size_t bytecode_size = (size_t)(*size_addr);
+  hako_free_in_wasm(runtime, size_ptr);
 
- FILE *f = fopen(output_file, "wb");
- if (!f) {
-   fprintf(stderr, "Error: Cannot open output file '%s': %s\n", output_file,
-           strerror(errno));
-   hako_free_in_wasm(runtime, bytecode_ptr);
-   return false;
- }
+  uint8_t *bytecode =
+      wasm_runtime_addr_app_to_native(runtime->instance, bytecode_ptr);
+  if (!bytecode) {
+    fprintf(stderr, "Error: Invalid bytecode pointer\n");
+    hako_free_in_wasm(runtime, bytecode_ptr);
+    return false;
+  }
 
- size_t written = fwrite(bytecode, 1, bytecode_size, f);
- fclose(f);
+  FILE *f = fopen(output_file, "wb");
+  if (!f) {
+    fprintf(stderr, "Error: Cannot open output file '%s': %s\n", output_file,
+            strerror(errno));
+    hako_free_in_wasm(runtime, bytecode_ptr);
+    return false;
+  }
 
- hako_free_in_wasm(runtime, bytecode_ptr);
+  size_t written = fwrite(bytecode, 1, bytecode_size, f);
+  fclose(f);
 
- if (written != bytecode_size) {
-   fprintf(stderr, "Error: Failed to write complete bytecode\n");
-   return false;
- }
+  hako_free_in_wasm(runtime, bytecode_ptr);
 
- printf("Compiled to %s (%zu bytes)\n", output_file, bytecode_size);
- return true;
+  if (written != bytecode_size) {
+    fprintf(stderr, "Error: Failed to write complete bytecode\n");
+    return false;
+  }
+
+  printf("Compiled to %s (%zu bytes)\n", output_file, bytecode_size);
+  return true;
 }
 
 static HakoEvalResult hako_evaluate_bytecode(HakoRuntime *runtime,
@@ -2402,8 +2742,8 @@ static HakoEvalResult hako_evaluate_bytecode(HakoRuntime *runtime,
   uint32_t argv[4] = {runtime->js_context, bytecode_ptr,
                       (uint32_t)bytecode_size, 0};
 
-  if (UNLIKELY(!wasm_runtime_call_wasm(runtime->exec_env, runtime->funcs.eval_bytecode,
-                              4, argv))) {
+  if (UNLIKELY(!wasm_runtime_call_wasm(
+          runtime->exec_env, runtime->funcs.eval_bytecode, 4, argv))) {
     const char *exception = wasm_runtime_get_exception(runtime->instance);
     hako_free_in_wasm(runtime, bytecode_ptr);
     result.is_error = true;
@@ -2418,8 +2758,8 @@ static HakoEvalResult hako_evaluate_bytecode(HakoRuntime *runtime,
 
   if (runtime->funcs.is_error) {
     uint32_t error_argv[2] = {runtime->js_context, result.value};
-    if (LIKELY(wasm_runtime_call_wasm(runtime->exec_env, runtime->funcs.is_error, 2,
-                               error_argv)) &&
+    if (LIKELY(wasm_runtime_call_wasm(
+            runtime->exec_env, runtime->funcs.is_error, 2, error_argv)) &&
         error_argv[0] != 0) {
       result.is_error = true;
       result.error_message = hako_value_to_string(runtime, result.value, 2);
