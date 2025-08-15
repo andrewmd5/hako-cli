@@ -13,7 +13,7 @@ jobs:
           - os: ubuntu-latest
             name: linux-x86_64
             binary_name: hako
-            llvm_dir: /usr/lib/llvm-19/lib/cmake/llvm
+            llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
             
           - os: macos-13  
             name: macos-x86_64
@@ -24,11 +24,6 @@ jobs:
             name: macos-arm64
             binary_name: hako
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
-            
-          - os: windows-latest
-            name: windows-x86_64
-            binary_name: hako.exe
-            llvm_dir: C:/Program Files/LLVM/lib/cmake/llvm
 
     runs-on: ${{ matrix.os }}
     
@@ -85,23 +80,6 @@ jobs:
           exit 1
         fi
         echo "Test passed!"
-        
-    - name: Test Hako execution (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        Write-Host "Testing Hako execution..."
-        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-        $output = & "./build/bin/${{ matrix.binary_name }}" test.js 2>&1 | Out-String
-        $stopwatch.Stop()
-        $output = $output.Trim()
-        Write-Host "Output: $output"
-        Write-Host "Execution time: $($stopwatch.ElapsedMilliseconds)ms"
-        if ($output -ne "4") {
-          Write-Error "Test failed: Expected '4', got '$output'"
-          exit 1
-        }
-        Write-Host "Test passed!"
         
     - name: Upload artifact
       uses: actions/upload-artifact@v4
