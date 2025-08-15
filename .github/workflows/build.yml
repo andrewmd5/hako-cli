@@ -1,0 +1,80 @@
+name: Build and Test Hako CLI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+            binary_name: hako
+            
+          - os: macos-13
+            name: macos-x86_64
+            binary_name: hako
+            
+          - os: macos-latest
+            name: macos-arm64
+            binary_name: hako
+            
+          - os: windows-latest
+            name: windows-x86_64
+            binary_name: hako.exe
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release --parallel
+        
+    - name: Create test JavaScript file
+      run: |
+        echo "console.log(2 + 2);" > test.js
+        
+    - name: Test Hako execution (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
+        echo "Output: $output"
+        if [ "$output" != "4" ]; then
+          echo "Test failed: Expected '4', got '$output'"
+          exit 1
+        fi
+        echo "Test passed!"
+        
+    - name: Test Hako execution (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $output = & "./build/bin/${{ matrix.binary_name }}" test.js 2>&1 | Out-String
+        $output = $output.Trim()
+        Write-Host "Output: $output"
+        if ($output -ne "4") {
+          Write-Error "Test failed: Expected '4', got '$output'"
+          exit 1
+        }
+        Write-Host "Test passed!"
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: hako-${{ matrix.name }}
+        path: build/bin/${{ matrix.binary_name }}

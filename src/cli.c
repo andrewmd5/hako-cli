@@ -2303,6 +2303,11 @@ static HakoRuntime *hako_runtime_create(void) {
 
   RuntimeInitArgs init_args = {0};
   init_args.mem_alloc_type = Alloc_With_System_Allocator;
+#if WASM_ENABLE_FAST_JIT != 0
+  init_args.running_mode = Mode_Fast_JIT;
+#else
+  init_args.running_mode = Mode_Interp; // Fast interpreter
+#endif
 
   if (!wasm_runtime_full_init(&init_args)) {
     goto error;
