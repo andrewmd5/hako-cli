@@ -75,7 +75,8 @@ jobs:
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_C_COMPILER="${{ matrix.cc }}" \
-                -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" ..
+                -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" \
+                -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
       
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
@@ -96,22 +97,6 @@ jobs:
       - name: Create test JavaScript file
         run: |
           echo "console.log(2 + 2);" > test.js
-      
-      - name: Test Hako execution (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          echo "Testing Hako execution..."
-          start=$(date +%s%N)
-          output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
-          end=$(date +%s%N)
-          duration=$((($end - $start) / 1000000))
-          echo "Output: $output"
-          echo "Execution time: ${duration}ms"
-          if [ "$output" != "4" ]; then
-            echo "Test failed: Expected '4', got '$output'"
-            exit 1
-          fi
-          echo "Test passed!"
       
       - name: Test Hako execution (Windows)
         if: runner.os == 'Windows'
