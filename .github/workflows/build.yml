@@ -98,6 +98,17 @@ jobs:
         run: |
           echo "console.log(2 + 2);" > test.js
       
+      - name: Test Hako execution (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          echo "Testing Hako execution..."
+          output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
+          if [ "$output" != "4" ]; then
+            echo "Test failed: Expected '4', got '$output'"
+            exit 1
+          fi
+          echo "Test passed!"
+      
       - name: Test Hako execution (Windows)
         if: runner.os == 'Windows'
         run: |

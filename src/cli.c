@@ -2303,10 +2303,17 @@ static HakoRuntime *hako_runtime_create(bool use_jit) {
 
   RuntimeInitArgs init_args = {0};
   init_args.mem_alloc_type = Alloc_With_System_Allocator;
+  #if defined (HAKO_JIT_MODE)
+printf("Using JIT mode\n");
+#endif
   if (use_jit) {
-  init_args.running_mode = Mode_LLVM_JIT;
+#if HAKO_JIT_MODE == 1
+    init_args.running_mode = Mode_Fast_JIT
+#elif HAKO_JIT_MODE == 2
+    init_args.running_mode = Mode_LLVM_JIT;
+#endif
   } else {
-    init_args.running_mode = Mode_Interp;
+    init_args.running_mode = Mode_Fast_JIT;
   }
 
   if (!wasm_runtime_full_init(&init_args)) {
