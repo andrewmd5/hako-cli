@@ -76,7 +76,6 @@ endif()
 
 set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm-micro-runtime)
 
-
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(WAMR_BUILD_PLATFORM "linux")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -84,7 +83,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(WAMR_BUILD_PLATFORM "windows")
 endif()
-
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
   set(WAMR_BUILD_TARGET "X86_64")
@@ -94,21 +92,10 @@ else()
   set(WAMR_BUILD_TARGET "X86_64")
 endif()
 
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-  set(WAMR_BUILD_JIT 1)
-  set(WAMR_BUILD_FAST_JIT 0)
-  set(WAMR_BUILD_INTERP 0)
-  set(WAMR_BUILD_FAST_INTERP 0)
-  message(STATUS "Using LLVM JIT for Linux x86_64")
-else()
-  set(WAMR_BUILD_JIT 0)
-  set(WAMR_BUILD_FAST_JIT 0)
-  set(WAMR_BUILD_INTERP 1)
-  set(WAMR_BUILD_FAST_INTERP 1)
-  message(STATUS "Using Fast Interpreter for ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}")
-endif()
-
+set(WAMR_BUILD_JIT 0)
+set(WAMR_BUILD_FAST_JIT 0)
+set(WAMR_BUILD_INTERP 1)
+set(WAMR_BUILD_FAST_INTERP 1)
 set(WAMR_BUILD_AOT 0)
 set(WAMR_BUILD_LIBC_BUILTIN 1)
 set(WAMR_BUILD_LIBC_WASI 1)
@@ -122,16 +109,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
   set(WAMR_DISABLE_STACK_OVERFLOW_CHECK 1)
 endif()
 
-
 if(WAMR_BUILD_JIT)
   find_package(LLVM REQUIRED CONFIG)
   message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
   message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-  
-  
+
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-  
-  
+
   llvm_map_components_to_libnames(llvm_libs support core orcjit native)
 endif()
 
