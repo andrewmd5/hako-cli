@@ -15,6 +15,13 @@ jobs:
             cc: /usr/bin/clang-20
             cxx: /usr/bin/clang++-20
 
+          - os: ubuntu-22.04-arm
+            name: linux-arm64
+            binary_name: hako
+            llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
+            cc: /usr/bin/clang-20
+            cxx: /usr/bin/clang++-20
+
           - os: macos-13
             name: macos-x86_64
             binary_name: hako
