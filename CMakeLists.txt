@@ -16,8 +16,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(
       -O3
-      -march=native
-      -mtune=native
       -fomit-frame-pointer
       -fno-stack-protector
       -funroll-loops
@@ -56,21 +54,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
       /GS-
       /fp:precise)
 
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-      add_compile_options(/arch:AVX2)
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-      add_compile_options(/arch:armv8.0)
-    endif()
-
     set(CMAKE_EXE_LINKER_FLAGS
         "${CMAKE_EXE_LINKER_FLAGS} /LTCG /OPT:REF /OPT:ICF")
     add_compile_options(/MP)
-  endif()
-
-  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-      add_compile_options(-msse4.2 -mavx2 -mfma)
-    endif()
   endif()
 endif()
 
@@ -171,7 +157,7 @@ set_target_properties(hako PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                                       ${CMAKE_BINARY_DIR}/bin)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  message(STATUS "Building in Release mode with maximum optimizations")
+  message(STATUS "Building in Release mode with optimizations")
   message(STATUS "Compiler: ${CMAKE_C_COMPILER_ID}")
   message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
   message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
