@@ -11,11 +11,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-
     add_compile_options(
       -O3
       -march=native
@@ -46,7 +44,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 
   elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-
     add_compile_options(
       /O2
       /Ob3
@@ -67,7 +64,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 
     set(CMAKE_EXE_LINKER_FLAGS
         "${CMAKE_EXE_LINKER_FLAGS} /LTCG /OPT:REF /OPT:ICF")
-
     add_compile_options(/MP)
   endif()
 
@@ -80,6 +76,7 @@ endif()
 
 set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm-micro-runtime)
 
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(WAMR_BUILD_PLATFORM "linux")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -87,6 +84,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(WAMR_BUILD_PLATFORM "windows")
 endif()
+
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
   set(WAMR_BUILD_TARGET "X86_64")
@@ -96,17 +94,21 @@ else()
   set(WAMR_BUILD_TARGET "X86_64")
 endif()
 
-if((CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin") 
-   AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
   set(WAMR_BUILD_JIT 1)
   set(WAMR_BUILD_FAST_JIT 0)
+  set(WAMR_BUILD_INTERP 0)
+  set(WAMR_BUILD_FAST_INTERP 0)
+  message(STATUS "Using LLVM JIT for Linux x86_64")
 else()
   set(WAMR_BUILD_JIT 0)
   set(WAMR_BUILD_FAST_JIT 0)
+  set(WAMR_BUILD_INTERP 1)
+  set(WAMR_BUILD_FAST_INTERP 1)
+  message(STATUS "Using Fast Interpreter for ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-set(WAMR_BUILD_INTERP 1)
-set(WAMR_BUILD_FAST_INTERP 1)
 set(WAMR_BUILD_AOT 0)
 set(WAMR_BUILD_LIBC_BUILTIN 1)
 set(WAMR_BUILD_LIBC_WASI 1)
@@ -120,10 +122,29 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
   set(WAMR_DISABLE_STACK_OVERFLOW_CHECK 1)
 endif()
 
+
+if(WAMR_BUILD_JIT)
+  find_package(LLVM REQUIRED CONFIG)
+  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+  message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+  
+  
+  separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+  
+  
+  llvm_map_components_to_libnames(llvm_libs support core orcjit native)
+endif()
+
 include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
 
 add_library(vmlib STATIC ${WAMR_RUNTIME_LIB_SOURCE})
 target_include_directories(vmlib PUBLIC ${WAMR_ROOT_DIR}/core/iwasm/include)
+
+if(WAMR_BUILD_JIT)
+  target_include_directories(vmlib PUBLIC ${LLVM_INCLUDE_DIRS})
+  target_compile_definitions(vmlib PUBLIC ${LLVM_DEFINITIONS_LIST})
+  target_link_libraries(vmlib PUBLIC ${llvm_libs})
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   target_compile_options(vmlib PRIVATE ${CMAKE_C_COMPILE_FLAGS})
@@ -170,4 +191,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
   message(STATUS "Compiler: ${CMAKE_C_COMPILER_ID}")
   message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
   message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+  if(WAMR_BUILD_JIT)
+    message(STATUS "Runtime: LLVM JIT (version ${LLVM_PACKAGE_VERSION})")
+  else
+    message(STATUS "Runtime: Fast Interpreter")
+  endif()
 endif()
