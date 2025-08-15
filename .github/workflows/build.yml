@@ -1,10 +1,8 @@
 name: Build and Test Hako CLI
-
 on:
   push:
   pull_request:
   workflow_dispatch:
-
 jobs:
   build:
     strategy:
@@ -16,42 +14,58 @@ jobs:
             llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
             cc: /usr/bin/clang-20
             cxx: /usr/bin/clang++-20
-            
           - os: macos-13
             name: macos-x86_64
             binary_name: hako
             llvm_dir: /usr/local/opt/llvm/lib/cmake/llvm
             cc: /usr/local/opt/llvm/bin/clang
             cxx: /usr/local/opt/llvm/bin/clang++
-            
           - os: macos-latest
             name: macos-arm64
             binary_name: hako
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
             cc: /opt/homebrew/opt/llvm/bin/clang
             cxx: /opt/homebrew/opt/llvm/bin/clang++
-
+          - os: windows-2025
+            name: windows-x86_64
+            binary_name: hako.exe
+            llvm_dir: C:/Program Files/LLVM/lib/cmake/llvm
+            cc: C:/Program Files/LLVM/bin/clang.exe
+            cxx: C:/Program Files/LLVM/bin/clang++.exe
     runs-on: ${{ matrix.os }}
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          
+      
       - name: Setup LLVM (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 20
-          
+      
       - name: Setup LLVM (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install llvm
-          
-      - name: Configure CMake
+      
+      - name: Setup LLVM (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          winget install -e --id LLVM.LLVM --accept-package-agreements --accept-source-agreements
+          $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
+          clang --version
+      
+      - name: Setup Ninja (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          winget install --id=Ninja-build.Ninja -e --accept-package-agreements --accept-source-agreements
+          refreshenv
+      
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
         run: |
           mkdir build
           cd build
@@ -59,17 +73,29 @@ jobs:
                 -DCMAKE_C_COMPILER="${{ matrix.cc }}" \
                 -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" \
                 -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
-          
+      
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Ninja" `
+                -DCMAKE_BUILD_TYPE=Release `
+                -DCMAKE_C_COMPILER="${{ matrix.cc }}" `
+                -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" `
+                -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
+      
       - name: Build
         run: |
           cd build
           cmake --build . --config Release --parallel
-          
+      
       - name: Create test JavaScript file
         run: |
           echo "console.log(2 + 2);" > test.js
-          
-      - name: Test Hako execution
+      
+      - name: Test Hako execution (Unix)
+        if: runner.os != 'Windows'
         run: |
           echo "Testing Hako execution..."
           start=$(date +%s%N)
@@ -83,7 +109,23 @@ jobs:
             exit 1
           fi
           echo "Test passed!"
-          
+      
+      - name: Test Hako execution (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Write-Host "Testing Hako execution..."
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          $output = & ./build/bin/${{ matrix.binary_name }} test.js 2>&1
+          $sw.Stop()
+          $duration = $sw.ElapsedMilliseconds
+          Write-Host "Output: $output"
+          Write-Host "Execution time: ${duration}ms"
+          if ($output -ne "4") {
+            Write-Host "Test failed: Expected '4', got '$output'"
+            exit 1
+          }
+          Write-Host "Test passed!"
+      
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
