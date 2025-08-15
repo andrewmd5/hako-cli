@@ -36,8 +36,8 @@
 #define UNLIKELY(x) (!!(x))
 #endif
 
-#define HAKO_STACK_SIZE (256 * 1024)
-#define HAKO_HEAP_SIZE (512 * 1024)
+#define HAKO_STACK_SIZE (8 * 1024 * 1024)
+#define HAKO_HEAP_SIZE (24 * 1024 * 1024)
 #define HAKO_ERROR_BUFFER_SIZE 256
 #define HAKO_ALL_INTRINSICS 0
 #define HAKO_MAX_HOST_FUNCTIONS 64
