@@ -20,27 +20,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
       -fno-stack-protector
       -funroll-loops
       -flto)
-
-    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-      add_compile_options(-fgraphite-identity -floop-nest-optimize
-                          -ftree-vectorize -fipa-pta)
-      set(CMAKE_EXE_LINKER_FLAGS
-          "${CMAKE_EXE_LINKER_FLAGS} -flto=auto -fuse-linker-plugin")
-    endif()
-
-    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
-      add_compile_options(-fvectorize -fslp-vectorize)
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto=thin")
-    endif()
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-      add_compile_options(-fno-plt)
-      set(CMAKE_EXE_LINKER_FLAGS
-          "${CMAKE_EXE_LINKER_FLAGS} -Wl,-O3 -Wl,--as-needed")
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
-    endif()
-
+      
   elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(
       /O2
