@@ -13,18 +13,22 @@ jobs:
           - os: ubuntu-latest
             name: linux-x86_64
             binary_name: hako
+            llvm_dir: /usr/lib/llvm-19/lib/cmake/llvm
             
-          - os: macos-13
+          - os: macos-13  
             name: macos-x86_64
             binary_name: hako
+            llvm_dir: /usr/local/opt/llvm/lib/cmake/llvm
             
-          - os: macos-latest
+          - os: macos-latest  
             name: macos-arm64
             binary_name: hako
+            llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
             
           - os: windows-latest
             name: windows-x86_64
             binary_name: hako.exe
+            llvm_dir: C:/Program Files/LLVM/lib/cmake/llvm
 
     runs-on: ${{ matrix.os }}
     
@@ -34,11 +38,28 @@ jobs:
       with:
         submodules: recursive
         
+    - name: Setup LLVM (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 20
+        
+    - name: Setup LLVM (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install llvm
+        
+    - name: Setup LLVM (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        choco install llvm -y
+        
     - name: Configure CMake
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
         
     - name: Build
       run: |
@@ -52,8 +73,13 @@ jobs:
     - name: Test Hako execution (Unix)
       if: runner.os != 'Windows'
       run: |
+        echo "Testing Hako execution..."
+        start=$(date +%s%N)
         output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
+        end=$(date +%s%N)
+        duration=$((($end - $start) / 1000000))
         echo "Output: $output"
+        echo "Execution time: ${duration}ms"
         if [ "$output" != "4" ]; then
           echo "Test failed: Expected '4', got '$output'"
           exit 1
@@ -64,9 +90,13 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
+        Write-Host "Testing Hako execution..."
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         $output = & "./build/bin/${{ matrix.binary_name }}" test.js 2>&1 | Out-String
+        $stopwatch.Stop()
         $output = $output.Trim()
         Write-Host "Output: $output"
+        Write-Host "Execution time: $($stopwatch.ElapsedMilliseconds)ms"
         if ($output -ne "4") {
           Write-Error "Test failed: Expected '4', got '$output'"
           exit 1
