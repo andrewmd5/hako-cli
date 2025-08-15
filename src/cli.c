@@ -36,7 +36,7 @@
 #define UNLIKELY(x) (!!(x))
 #endif
 
-#define HAKO_STACK_SIZE (8 * 1024 * 1024)
+#define HAKO_STACK_SIZE (2 * 1024 * 1024)
 #define HAKO_HEAP_SIZE (24 * 1024 * 1024)
 #define HAKO_ERROR_BUFFER_SIZE 256
 #define HAKO_ALL_INTRINSICS 0
@@ -2284,7 +2284,7 @@ static bool hako_setup_io(HakoRuntime *runtime) {
   return true;
 }
 
-static HakoRuntime *hako_runtime_create(void) {
+static HakoRuntime *hako_runtime_create(bool use_jit) {
   HakoRuntime *runtime = calloc(1, sizeof(HakoRuntime));
   if (!runtime) {
     return NULL;
@@ -2303,7 +2303,11 @@ static HakoRuntime *hako_runtime_create(void) {
 
   RuntimeInitArgs init_args = {0};
   init_args.mem_alloc_type = Alloc_With_System_Allocator;
-  init_args.running_mode = Mode_Interp; 
+  if (use_jit) {
+  init_args.running_mode = Mode_LLVM_JIT;
+  } else {
+    init_args.running_mode = Mode_Interp;
+  }
 
   if (!wasm_runtime_full_init(&init_args)) {
     goto error;
@@ -3296,6 +3300,7 @@ int main(int argc, char *argv[]) {
   char *eval_code = NULL;
   bool debug_mode = false;
   bool disable_module_loader = false;
+  bool use_jit = false;
 
   int i = 1;
   while (i < argc) {
@@ -3306,6 +3311,8 @@ int main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     } else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--debug") == 0) {
       debug_mode = true;
+    } else if (strcmp(arg, "-j") == 0 || strcmp(arg, "--jit") == 0) {
+      use_jit = true;
     } else if (strcmp(arg, "--no-module-loader") == 0) {
       disable_module_loader = true;
     } else if (strcmp(arg, "-e") == 0 || strcmp(arg, "--eval") == 0) {
@@ -3379,7 +3386,7 @@ int main(int argc, char *argv[]) {
     mode = HAKO_MODE_EVAL;
   }
 
-  HakoRuntime *runtime = hako_runtime_create();
+  HakoRuntime *runtime = hako_runtime_create(use_jit);
   if (!runtime) {
     fprintf(stderr, "Failed to create Hako runtime\n");
     return EXIT_FAILURE;
