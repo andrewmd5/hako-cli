@@ -14,24 +14,21 @@ jobs:
             llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
             cc: /usr/bin/clang-20
             cxx: /usr/bin/clang++-20
+
           - os: macos-13
             name: macos-x86_64
             binary_name: hako
             llvm_dir: /usr/local/opt/llvm/lib/cmake/llvm
             cc: /usr/local/opt/llvm/bin/clang
             cxx: /usr/local/opt/llvm/bin/clang++
+
           - os: macos-latest
             name: macos-arm64
             binary_name: hako
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
             cc: /opt/homebrew/opt/llvm/bin/clang
             cxx: /opt/homebrew/opt/llvm/bin/clang++
-          - os: windows-2025
-            name: windows-x86_64
-            binary_name: hako.exe
-            llvm_dir: C:/Program Files/LLVM/lib/cmake/llvm
-            cc: C:/Program Files/LLVM/bin/clang.exe
-            cxx: C:/Program Files/LLVM/bin/clang++.exe
+            
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository

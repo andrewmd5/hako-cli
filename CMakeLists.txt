@@ -16,8 +16,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(
       -O3
-      -march=native
-      -mtune=native
       -fomit-frame-pointer
       -fno-stack-protector
       -funroll-loops
