@@ -3,6 +3,21 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type (Release or Debug)'
+        required: false
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+          - RelWithDebInfo
+          - MinSizeRel
+
+env:
+  BUILD_TYPE: ${{ github.event.inputs.build_type || 'Release' }}
+
 jobs:
   build:
     strategy:
@@ -66,7 +81,8 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release \
+          echo "Building with CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}"
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
                 -DCMAKE_C_COMPILER="${{ matrix.cc }}" \
                 -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" \
                 -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
@@ -76,8 +92,9 @@ jobs:
         run: |
           mkdir build
           cd build
+          Write-Host "Building with CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}"
           cmake -G "Ninja" `
-                -DCMAKE_BUILD_TYPE=Release `
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
                 -DCMAKE_C_COMPILER="${{ matrix.cc }}" `
                 -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" `
                 -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
@@ -85,7 +102,7 @@ jobs:
       - name: Build
         run: |
           cd build
-          cmake --build . --config Release --parallel
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel
       
       - name: Create test JavaScript file
         run: |
@@ -94,7 +111,7 @@ jobs:
       - name: Test Hako execution (Unix)
         if: runner.os != 'Windows'
         run: |
-          echo "Testing Hako execution..."
+          echo "Testing Hako execution (Build type: ${{ env.BUILD_TYPE }})..."
           start=$(date +%s%N)
           output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
           end=$(date +%s%N)
@@ -110,7 +127,7 @@ jobs:
       - name: Test Hako execution (Windows)
         if: runner.os == 'Windows'
         run: |
-          Write-Host "Testing Hako execution..."
+          Write-Host "Testing Hako execution (Build type: ${{ env.BUILD_TYPE }})..."
           $sw = [System.Diagnostics.Stopwatch]::StartNew()
           $output = & ./build/bin/${{ matrix.binary_name }} test.js 2>&1
           $sw.Stop()
@@ -126,5 +143,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hako-${{ matrix.name }}
+          name: hako-${{ matrix.name }}-${{ env.BUILD_TYPE }}
           path: build/bin/${{ matrix.binary_name }}
