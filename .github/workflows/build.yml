@@ -14,75 +14,78 @@ jobs:
             name: linux-x86_64
             binary_name: hako
             llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
+            cc: /usr/bin/clang-20
+            cxx: /usr/bin/clang++-20
             
-          - os: macos-13  
+          - os: macos-13
             name: macos-x86_64
             binary_name: hako
             llvm_dir: /usr/local/opt/llvm/lib/cmake/llvm
+            cc: /usr/local/opt/llvm/bin/clang
+            cxx: /usr/local/opt/llvm/bin/clang++
             
-          - os: macos-latest  
+          - os: macos-latest
             name: macos-arm64
             binary_name: hako
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
+            cc: /opt/homebrew/opt/llvm/bin/clang
+            cxx: /opt/homebrew/opt/llvm/bin/clang++
 
     runs-on: ${{ matrix.os }}
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        
-    - name: Setup LLVM (Ubuntu)
-      if: runner.os == 'Linux'
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 20
-        
-    - name: Setup LLVM (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install llvm
-        
-    - name: Setup LLVM (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        choco install llvm -y
-        
-    - name: Configure CMake
-      run: |
-        mkdir build
-        cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
-        
-    - name: Build
-      run: |
-        cd build
-        cmake --build . --config Release --parallel
-        
-    - name: Create test JavaScript file
-      run: |
-        echo "console.log(2 + 2);" > test.js
-        
-    - name: Test Hako execution (Unix)
-      if: runner.os != 'Windows'
-      run: |
-        echo "Testing Hako execution..."
-        start=$(date +%s%N)
-        output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
-        end=$(date +%s%N)
-        duration=$((($end - $start) / 1000000))
-        echo "Output: $output"
-        echo "Execution time: ${duration}ms"
-        if [ "$output" != "4" ]; then
-          echo "Test failed: Expected '4', got '$output'"
-          exit 1
-        fi
-        echo "Test passed!"
-        
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: hako-${{ matrix.name }}
-        path: build/bin/${{ matrix.binary_name }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Setup LLVM (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          
+      - name: Setup LLVM (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm
+          
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER="${{ matrix.cc }}" \
+                -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}" \
+                -DLLVM_DIR="${{ matrix.llvm_dir }}" ..
+          
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release --parallel
+          
+      - name: Create test JavaScript file
+        run: |
+          echo "console.log(2 + 2);" > test.js
+          
+      - name: Test Hako execution
+        run: |
+          echo "Testing Hako execution..."
+          start=$(date +%s%N)
+          output=$(./build/bin/${{ matrix.binary_name }} test.js 2>&1)
+          end=$(date +%s%N)
+          duration=$((($end - $start) / 1000000))
+          echo "Output: $output"
+          echo "Execution time: ${duration}ms"
+          if [ "$output" != "4" ]; then
+            echo "Test failed: Expected '4', got '$output'"
+            exit 1
+          fi
+          echo "Test passed!"
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hako-${{ matrix.name }}
+          path: build/bin/${{ matrix.binary_name }}
