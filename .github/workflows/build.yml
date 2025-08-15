@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             name: linux-x86_64
             binary_name: hako
             llvm_dir: /usr/lib/llvm-20/lib/cmake/llvm
@@ -29,7 +29,7 @@ jobs:
             cc: /usr/local/opt/llvm/bin/clang
             cxx: /usr/local/opt/llvm/bin/clang++
 
-          - os: macos-latest
+          - os: macos-15
             name: macos-arm64
             binary_name: hako
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
